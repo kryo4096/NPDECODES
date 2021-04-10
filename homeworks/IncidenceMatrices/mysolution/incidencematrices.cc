@@ -60,11 +60,24 @@ std::shared_ptr<lf::mesh::Mesh> createDemoMesh() {
 Eigen::SparseMatrix<int> computeEdgeVertexIncidenceMatrix(
     const lf::mesh::Mesh &mesh) {
   // Store edge-vertex incidence matrix here
-  Eigen::SparseMatrix<int, Eigen::RowMajor> G;
 
-  //====================
-  // Your code goes here
-  //====================
+
+  // number of edges
+  int N = mesh.NumEntities(1);
+  // number of vertices
+  int M = mesh.NumEntities(2);
+
+  Eigen::SparseMatrix<int, Eigen::RowMajor> G(N,M);
+
+
+  G.reserve(Eigen::VectorXi::Constant(N, 2));
+
+  for(int i = 0; i < N; i++) {
+    auto vertices = mesh.Entities(1)[i]->SubEntities(1);
+    G.coeffRef(i, mesh.Index(*vertices[0])) = 1;
+    G.coeffRef(i, mesh.Index(*vertices[1])) = -1;
+  }
+
 
   return G;
 }
@@ -78,12 +91,28 @@ Eigen::SparseMatrix<int> computeEdgeVertexIncidenceMatrix(
 /* SAM_LISTING_BEGIN_2 */
 Eigen::SparseMatrix<int> computeCellEdgeIncidenceMatrix(
     const lf::mesh::Mesh &mesh) {
-  // Store cell-edge incidence matrix here
-  Eigen::SparseMatrix<int, Eigen::RowMajor> D;
 
-  //====================
-  // Your code goes here
-  //====================
+  // number of cells
+  int N = mesh.NumEntities(0);
+  // number of edges
+  int M = mesh.NumEntities(1);
+
+  Eigen::SparseMatrix<int, Eigen::RowMajor> D(N,M);
+
+
+  D.reserve(Eigen::VectorXi::Constant(N, 4));
+
+  for(int i = 0; i < N; i++) {
+
+    auto edges = mesh.Entities(0)[i]->SubEntities(1);
+
+    for(int k = 0; k < edges.size(); k++) {
+      D.coeffRef(i, mesh.Index(*edges[k])) = lf::mesh::to_sign(mesh.Entities(0)[i]->RelativeOrientations()[k]);
+    }
+
+  }
+
+
 
   return D;
 }
@@ -97,12 +126,7 @@ Eigen::SparseMatrix<int> computeCellEdgeIncidenceMatrix(
  */
 /* SAM_LISTING_BEGIN_3 */
 bool testZeroIncidenceMatrixProduct(const lf::mesh::Mesh &mesh) {
-  bool isZero = false;
-
-  //====================
-  // Your code goes here
-  //====================
-  return isZero;
+  return (computeCellEdgeIncidenceMatrix(mesh) * computeEdgeVertexIncidenceMatrix(mesh)).norm() == 0;
 }
 /* SAM_LISTING_END_3 */
 

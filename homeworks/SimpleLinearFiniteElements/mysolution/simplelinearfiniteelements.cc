@@ -48,6 +48,17 @@ Eigen::Matrix3d ElementMatrix_LaplMass_LFE(
   return ElementMatrix_Lapl_LFE(triangle) + ElementMatrix_Mass_LFE(triangle);
 }
 
+double triangle_area(const Eigen::Matrix<double, 2, 3> &triangle) {
+  Eigen::Matrix2d side_lengths;
+
+  side_lengths.col(0) = triangle.col(1) - triangle.col(0);
+  side_lengths.col(1) = triangle.col(2) - triangle.col(0);
+
+  double area = 0.5 * side_lengths.determinant();
+
+  return area;
+}
+
 /**
  *  @brief Computation of element mass matrix on planar triangle
  *  @param triangle 2x3 matrix of vertex coordinates
@@ -55,10 +66,11 @@ Eigen::Matrix3d ElementMatrix_LaplMass_LFE(
 /* SAM_LISTING_BEGIN_1 */
 Eigen::Matrix3d ElementMatrix_Mass_LFE(
     const Eigen::Matrix<double, 2, 3> &triangle) {
-  Eigen::Matrix3d element_matrix;
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::Matrix3d element_matrix =
+      (1. / 12.) * triangle_area(triangle) *
+      (Eigen::Matrix3d::Ones() +
+       Eigen::Vector3d::Ones().asDiagonal().toDenseMatrix());
+
   return element_matrix;
 }
 /* SAM_LISTING_END_1 */
@@ -75,9 +87,20 @@ Eigen::Matrix3d ElementMatrix_Mass_LFE(
 double L2Error(const TriaMesh2D &mesh, const Eigen::VectorXd &uFEM,
                const std::function<double(const Eigen::Vector2d &)> exact) {
   double l2error_squared = 0.0;
-  //====================
-  // Your code goes here
-  //====================
+
+  for (int i = 0; i < mesh.elements.rows(); i++) {
+    Eigen::Matrix<double, 2, 3> triangle = mesh[i];
+
+    double area = triangle_area(triangle);
+
+    double sum = 0.;
+
+    for (int k = 0; k < 3; k++) {
+      sum += pow(exact(triangle.col(k)) - uFEM[mesh.elements(i, k)], 2);
+    }
+
+    l2error_squared += (1. / 3.) * triangle_area(triangle) * sum;
+  }
 
   return std::sqrt(l2error_squared);
 }
@@ -98,9 +121,33 @@ double H1Serror(
     const TriaMesh2D &mesh, const Eigen::VectorXd &uFEM,
     const std::function<Eigen::Vector2d(const Eigen::Vector2d &)> exact) {
   double H1Serror_squared = 0.0;
-  //====================
-  // Your code goes here
-  //====================
+
+  for (int i = 0; i < mesh.elements.rows(); i++) {
+    Eigen::Matrix<double, 2, 3> triangle = mesh[i];
+
+    double area = triangle_area(triangle);
+
+    double sum = 0.;
+
+    Eigen::Matrix3d X;
+
+    X.block<3, 1>(0, 0) = Eigen::Vector3d::Ones();
+    X.block<3, 2>(0, 1) = triangle.transpose();
+
+    Eigen::Matrix<double, 2, 3> gradients = X.inverse().block<2, 3>(1, 0);
+
+    Eigen::Vector2d gradient = Eigen::Vector2d::Zero();
+
+    for (int k = 0; k < 3; k++) {
+      gradient += gradients.col(k) * uFEM[mesh.elements(i, k)];
+    }
+
+    for (int k = 0; k < 3; k++) {
+      sum += (exact(triangle.col(k)) - gradient).squaredNorm();
+    }
+
+    H1Serror_squared += triangle_area(triangle) * sum / 3.;
+  }
 
   return std::sqrt(H1Serror_squared);
 }
@@ -205,10 +252,24 @@ std::tuple<Eigen::VectorXd, double, double> Solve(
 
   //====================
   // Your code goes here
-  // Assigning some dummy values
-  U = Eigen::VectorXd::Zero(mesh.vertices.rows());
-  l2error = 1.0;
-  h1error = 1.0;
+
+  auto gradExact = [pi](const Eigen::Vector2d &x) {
+    return Eigen::Vector2d(-2*pi*std::sin(2 * pi * x(0)) * std::cos(2 * pi * x(1)), -2*pi*std::cos(2 * pi * x(0)) * std::sin(2 * pi * x(1)));
+  };
+  int N = mesh.vertices.rows();
+
+  auto A = GalerkinAssembly(mesh, ElementMatrix_LaplMass_LFE);
+  auto L = assemLoad_LFE(mesh, f);
+
+  Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> lu;
+
+  lu.analyzePattern(A);
+  lu.factorize(A);
+
+  U = lu.solve(L);
+
+  l2error = L2Error(mesh, U, uExact);
+  h1error = H1Serror(mesh, U, gradExact);
   //====================
   return std::make_tuple(U, l2error, h1error);
 }

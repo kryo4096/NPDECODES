@@ -20,7 +20,7 @@ double volumeOfDomain(const std::shared_ptr<lf::mesh::Mesh> mesh_p);
 
 double lengthOfBoundary(const std::shared_ptr<lf::mesh::Mesh> mesh_p);
 
-std::pair<double, double> measureDomain(std::string filename);
+std::pair<double, double> measureDomain(const std::string& filename);
 
 }  // namespace LengthOfBoundary
 #endif
