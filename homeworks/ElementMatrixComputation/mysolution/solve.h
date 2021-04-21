@@ -72,9 +72,13 @@ Eigen::VectorXd solve(ELMAT_PROVIDER &elmat_provider,
   // Define solution vector
   Eigen::VectorXd sol_vec = Eigen::VectorXd::Zero(N_dofs);
 
-  //====================
-  // Your code goes here
-  //====================
+
+  Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+
+  solver.compute(A_crs);
+
+  sol_vec = solver.solve(phi);
+
   /* SAM_LISTING_END_1 */
 
   double solver_error = (A_crs * sol_vec - phi).norm();

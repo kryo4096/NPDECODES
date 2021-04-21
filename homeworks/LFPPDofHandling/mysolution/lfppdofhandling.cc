@@ -24,9 +24,15 @@ namespace LFPPDofHandling {
 std::array<std::size_t, 3> countEntityDofs(
     const lf::assemble::DofHandler &dofhandler) {
   std::array<std::size_t, 3> entityDofs;
-  //====================
-  // Your code goes here
-  //====================
+
+  for(int codim = 0; codim < 3; codim++) {
+    int n = 0;
+    for(auto& entity : dofhandler.Mesh()->Entities(codim)) {
+       n += dofhandler.NumInteriorDofs(*entity);
+    }
+    entityDofs[codim] = n;
+  }
+
   return entityDofs;
 }
 /* SAM_LISTING_END_1 */
@@ -39,9 +45,19 @@ std::size_t countBoundaryDofs(const lf::assemble::DofHandler &dofhandler) {
   lf::mesh::utils::AllCodimMeshDataSet<bool> bd_flags(
       lf::mesh::utils::flagEntitiesOnBoundary(mesh));
   std::size_t no_dofs_on_bd = 0;
-  //====================
-  // Your code goes here
-  //====================
+
+      for(auto& entity : dofhandler.Mesh()->Entities(1)) {
+        if(bd_flags(*entity)) {
+          no_dofs_on_bd += dofhandler.NumInteriorDofs(*entity);
+        }
+      }
+
+      for(auto& entity : dofhandler.Mesh()->Entities(2)) {
+        if(bd_flags(*entity)) {
+          no_dofs_on_bd += dofhandler.NumInteriorDofs(*entity);
+        }
+      }
+
   return no_dofs_on_bd;
 }
 /* SAM_LISTING_END_2 */
@@ -51,10 +67,21 @@ std::size_t countBoundaryDofs(const lf::assemble::DofHandler &dofhandler) {
 double integrateLinearFEFunction(
     const lf::assemble::DofHandler& dofhandler,
     const Eigen::VectorXd& mu) {
-  double I = 0;
-  //====================
-  // Your code goes here
-  //====================
+    double I = 0;
+
+    for(auto entity : dofhandler.Mesh()->Entities(0)) {
+      auto indices = dofhandler.GlobalDofIndices(*entity);
+
+      assert(dofhandler.NumLocalDofs(*entity) == 3);
+
+      double area = lf::geometry::Volume(*entity->Geometry());
+
+      for(auto dof_idx : indices) {
+        I += area * (mu[dof_idx]) / 3.;
+      }
+
+    }
+
   return I;
 }
 /* SAM_LISTING_END_3 */
@@ -64,9 +91,26 @@ double integrateLinearFEFunction(
 double integrateQuadraticFEFunction(const lf::assemble::DofHandler &dofhandler,
                                     const Eigen::VectorXd &mu) {
   double I = 0;
-  //====================
-  // Your code goes here
-  //====================
+
+  for(auto entity : dofhandler.Mesh()->Entities(0)) {
+    auto indices = dofhandler.GlobalDofIndices(*entity);
+
+    assert(dofhandler.NumLocalDofs(*entity) == 6);
+
+    double area = lf::geometry::Volume(*entity->Geometry());
+
+    int i = 0;
+    for(auto dof_idx : indices) {
+
+      if(i >= 3) {
+        I += area * (mu[dof_idx]) / 3.;
+      }
+
+      i++;
+    }
+
+  }
+
   return I;
 }
 /* SAM_LISTING_END_4 */
@@ -89,7 +133,8 @@ Eigen::VectorXd convertDOFsLinearQuadratic(
   for (const auto *cell : mesh->Entities(0)) {
     // check if the spaces are actually linear and quadratic
     //====================
-    // Your code goes here
+    assert(dofh_Linear_FE.NumLocalDofs(*cell) == 3);
+    assert(dofh_Quadratic_FE.NumLocalDofs(*cell) == 6);
     //====================
     // get the global dof indices of the linear and quadratic FE spaces, note
     // that the vectors obey the LehrFEM++ numbering, which we will make use of
@@ -97,7 +142,16 @@ Eigen::VectorXd convertDOFsLinearQuadratic(
     // quad\_dofs will have size 6, the first 3 entries being the nodes and
     // the last 3 the edges
     //====================
-    // Your code goes here
+    auto lin_indices = dofh_Linear_FE.GlobalDofIndices(*cell);
+    auto quad_indices = dofh_Quadratic_FE.GlobalDofIndices(*cell);
+
+    for(size_t i = 0; i < 3; i++) {
+      zeta[quad_indices[i]] = mu[lin_indices[i]];
+      zeta[quad_indices[i+3]] = 0.5 * (mu[lin_indices[i]] + mu[lin_indices[(i + 1) % 3]]);
+
+      i++;
+    }
+
     // assign the coefficients of mu to the correct entries of zeta, use
     // the previous subproblem 2-9.a
     //====================

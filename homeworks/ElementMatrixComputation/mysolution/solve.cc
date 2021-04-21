@@ -24,11 +24,10 @@ Eigen::VectorXd solvePoissonBVP() {
   // The basis expansion coefficient vector for the finite-element solution
   Eigen::VectorXd solution = Eigen::VectorXd::Zero(1);
 
-  //====================
-  // Your code goes here
-  //====================
+  lf::uscalfe::LinearFELaplaceElementMatrix elementMatrix;
+  lf::uscalfe::LinearFELocalLoadVector<double, decltype(mf_f)> loadVector(mf_f);
 
-  return solution;
+  return solve(elementMatrix, loadVector);
 }
 /* SAM_LISTING_END_2 */
 
