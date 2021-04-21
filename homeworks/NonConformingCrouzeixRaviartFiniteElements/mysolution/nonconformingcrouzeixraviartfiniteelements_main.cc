@@ -31,10 +31,14 @@ int main() {
     const lf::io::GmshReader reader(std::move(mesh_factory), mesh_file);
     auto mesh_p = reader.mesh();
 
-// TODO: task 2-14.h)
-    //====================
-    // Your code goes here
-    //====================
+    auto dof_handler = lf::assemble::UniformFEDofHandler(mesh_p, {
+        {lf::base::RefEl::kPoint(), 0},
+        {lf::base::RefEl::kSegment(), 1},
+        {lf::base::RefEl::kTria(), 0},
+        {lf::base::RefEl::kQuad(), 0},
+    });
+
+
 
 // TODO: task 2-14.y)
     //====================
