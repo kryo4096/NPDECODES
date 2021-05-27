@@ -11,7 +11,7 @@
 
 namespace InitCondLV {
 
-std::pair<Eigen::Vector2d, Eigen::Matrix2d> PhiAndW(double u0, double v0,
+std::pair<Eigen::Vector2d, Eigen::Matrix2d> PhiAndW(double y, double W,
                                                     double T);
 
 }  // namespace InitCondLV

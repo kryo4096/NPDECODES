@@ -16,11 +16,23 @@ int main() {
    * using inital approximation [3,2]^T */
   /* SAM_LISTING_BEGIN_2 */
   Eigen::Vector2d y(3, 2);  // Initial guess
-  double T = 5;             // Period
+  double T = 25;             // Period
 
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::Vector2d F;
+
+  while(true) {
+	auto [phi, W] = InitCondLV::PhiAndW(y[0], y[1], T);
+
+	F = phi - y;
+	Eigen::Matrix2d DF = W - Eigen::Matrix2d::Identity();
+
+	if(F.norm() > 1e-10) {
+		y -= DF.lu().solve(F);
+	} else {
+		break;
+	}
+
+  }
 
   // Calculate the evolution of the Lotka-Volterra ODE up to
   // time 100, using the initial value y, found by the Newton iterations above.
@@ -29,6 +41,9 @@ int main() {
   //====================
   // Your code goes here
   //====================
+
+
+  std::cout << y << std::endl;
 
   // Testing obtained solution against reference "exact" solution
   Eigen::Vector2d ref(3.1098751029156, 2.08097564048345);

@@ -50,7 +50,7 @@ class LinearMassEdgeMatrixProvider {
   explicit LinearMassEdgeMatrixProvider(FUNCTOR predicate, double cool_coeff)
       : predicate_(predicate), cool_coeff_(cool_coeff) {}
   /** @brief Default implement: all edges are active */
-  virtual bool isActive(const lf::mesh::Entity & /*edge*/) { return true; }
+  virtual bool isActive(const lf::mesh::Entity & edge) { return predicate_(edge); }
   /** @brief Main method for computing the element vector
    * @param edge is current entity for which the element vector is desired
    * The implementation uses simple vertex based quadrature */
@@ -67,10 +67,14 @@ template <typename FUNCTOR>
 Eigen::Matrix<double, 2, 2> LinearMassEdgeMatrixProvider<FUNCTOR>::Eval(
     const lf::mesh::Entity &edge) {
   Eigen::Matrix<double, 2, 2> elBdyEdgeMat;
-  //====================
-  // Your code goes here
-  //====================
-  return (Eigen::Matrix<double, 2, 2>::Zero());
+
+  Eigen::Matrix2d corners = lf::geometry::Corners(*edge.Geometry());
+
+  double length = (corners.col(0) - corners.col(1)).norm();
+
+  elBdyEdgeMat << 2, 1, 1, 2;
+
+  return length / 6.0 * cool_coeff_ * elBdyEdgeMat;
 }  // LinearMassEdgeMatrixProvider<FUNCTOR>::Eval
 /* SAM_LISTING_END_9 */
 
@@ -78,12 +82,31 @@ Eigen::Matrix<double, 2, 2> LinearMassEdgeMatrixProvider<FUNCTOR>::Eval(
 std::pair<Eigen::SparseMatrix<double>, Eigen::SparseMatrix<double>>
 assembleGalerkinMatrices(const lf::assemble::DofHandler &dofh,
                          double cool_coeff) {
-  std::pair<Eigen::SparseMatrix<double>, Eigen::SparseMatrix<double>>
-      sparse_pair;
-  //====================
-  // Your code goes here
-  //====================
-  return sparse_pair;
+  auto mesh = dofh.Mesh();
+
+  auto fe_space = std::make_shared<lf::uscalfe::FeSpaceLagrangeO1<double>>(mesh);
+
+  auto boundary = lf::mesh::utils::flagEntitiesOnBoundary(mesh, 1);
+
+  size_t N = dofh.NumDofs();
+
+  lf::assemble::COOMatrix<double> A(N, N);
+
+  lf::uscalfe::LinearFELaplaceElementMatrix laplaceElementMatrix;
+
+  LinearMassEdgeMatrixProvider massEdgeMatrix(boundary, cool_coeff);
+
+  lf::assemble::AssembleMatrixLocally(0, dofh, dofh, laplaceElementMatrix, A);
+  lf::assemble::AssembleMatrixLocally(1, dofh, dofh, massEdgeMatrix, A);
+
+  lf::assemble::COOMatrix<double> M(N, N);
+  lf::mesh::utils::MeshFunctionConstant<double> diff_coeff(0), reaction_coeff(1);
+  lf::uscalfe::ReactionDiffusionElementMatrixProvider reactionDiffusionElementMatrixProvider(fe_space, diff_coeff, reaction_coeff);
+
+  lf::assemble::AssembleMatrixLocally(0, dofh, dofh, reactionDiffusionElementMatrixProvider, M);
+
+
+  return std::pair(A.makeSparse(), M.makeSparse());
 }
 /* SAM_LISTING_END_1 */
 
@@ -103,9 +126,9 @@ SDIRK2Timestepper::SDIRK2Timestepper(const lf::assemble::DofHandler &dofh,
 Eigen::VectorXd SDIRK2Timestepper::discreteEvolutionOperator(
     const Eigen::VectorXd &mu) const {
   Eigen::VectorXd discrete_evolution_operator;
-  //====================
-  // Your code goes here
-  //====================
+
+
+
   return discrete_evolution_operator;
 }  // SDIRK2Timestepper::discreteEvolutionOperator
 /* SAM_LISTING_END_9 */

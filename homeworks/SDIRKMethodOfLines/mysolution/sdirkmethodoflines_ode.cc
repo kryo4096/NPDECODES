@@ -23,7 +23,16 @@ std::vector<double> sdirk2SteppingLinScalODE(unsigned int m) {
   //=============================================
   // Your task is to modify the follow loop:
   for (int i = 1; i < m + 1; i++) {
-    sol_vec.push_back(0.0);
+
+  	    double y0 = sol_vec[i-1];
+	  double z = step_size * y0;
+	  double gamma = 1 - 0.5 * sqrt(2);
+
+	  double S = 1 + z * (1 - z*gamma*gamma) / ( 1 -  z * gamma) / (1 - z * gamma)
+
+
+
+	  sol_vec.push_back();
   }
 //=============================================
   return sol_vec;

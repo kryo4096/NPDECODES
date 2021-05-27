@@ -5,6 +5,7 @@
  */
 
 #include <Eigen/Dense>
+#include <utility>
 #include <vector>
 
 namespace RK3Prey {
@@ -13,10 +14,8 @@ namespace RK3Prey {
 /* SAM_LISTING_BEGIN_0 */
 class RKIntegrator {
  public:
-  RKIntegrator(const Eigen::MatrixXd &A, const Eigen::VectorXd &b) {
-    //====================
-    // Your code goes here
-    //====================
+  RKIntegrator(Eigen::MatrixXd A, Eigen::VectorXd b) : A(std::move(A)), b(std::move(b)) {
+
   }
 
   // Explicit Runge-Kutta numerical integrator
@@ -25,9 +24,8 @@ class RKIntegrator {
                                      const Eigen::VectorXd &y0, int M) const;
 
  private:
-  //====================
-  // Your code goes here
-  //====================
+  Eigen::MatrixXd A;
+  Eigen::VectorXd b;
 };
 /* SAM_LISTING_END_0 */
 
@@ -39,14 +37,25 @@ template <typename Function>
 std::vector<Eigen::VectorXd> RKIntegrator::solve(Function &&f, double T,
                                                  const Eigen::VectorXd &y0,
                                                  int M) const {
-  int dim = y0.size();  // dimension
+  long dim = y0.size();  // dimension
   double h = T / M;     // step size
-  std::vector<Eigen::VectorXd> sol;
-  sol.reserve(M + 1);
+  std::vector<Eigen::VectorXd> sol(M+1);
 
-  //====================
-  // Your code goes here
-  //====================
+  sol[0] = y0;
+
+  for (long n = 1; n <= M; n++) {
+
+	  long s = A.rows();
+
+	  Eigen::MatrixXd K(dim, s);
+
+	  for (long i = 0; i < s; i++) {
+		  K.col(i) = f(sol[n-1] + h * K.leftCols(std::fmax(1, i)) * A.row(i).transpose().head(std::fmax(1, i)));
+	  }
+
+	  sol[n] = sol[n-1] + h * K * b;
+  }
+
   return sol;
 }
 /* SAM_LISTING_END_1 */
